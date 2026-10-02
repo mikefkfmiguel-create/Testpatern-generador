@@ -2,7 +2,7 @@
 
 Gerador de test patterns para LED walls e ecrãs wide. Corre no browser, sem instalação, e exporta PNG à resolução real (pixel a pixel).
 
-**Usar online:** https://mikefkfmiguel-create.github.io/testpatern-generador/
+**Usar online:** https://mikefkfmiguel-create.github.io/Testpatern-generador/
 
 ## Funcionalidades
 
