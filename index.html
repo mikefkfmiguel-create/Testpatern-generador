@@ -137,6 +137,12 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 
   <div class="save-wrap">
     <button class="btn primary" id="export" type="button" style="width:100%">Exportar PNG</button>
+    <select class="btn" id="partilhar" style="width:100%;margin-top:8px" title="Partilhar ou guardar — escolhe por onde enviar" aria-label="Partilhar ou guardar o PNG">
+      <option value="" selected>↗ Partilhar / Guardar</option>
+      <option value="partilhar">Partilhar a imagem (WhatsApp, e-mail, Drive…)</option>
+      <option value="guardar">Guardar o PNG no aparelho</option>
+      <option value="copiar">Copiar a imagem</option>
+    </select>
   </div>
 </aside>
 
@@ -472,6 +478,48 @@ $('export').onclick=()=>{
   },'image/png');
 };
 $('mClose').onclick=()=>{$('modal').hidden=true;};
+
+// ---------- partilhar / guardar / copiar (a mesma ideia do «Partilhar/Guardar» das calculadoras) ----------
+// A partilha nativa (folha de partilhar do telemóvel) e' mais fiavel do que o download por <a download>, que em
+// browsers de telemovel falha em silencio. Sem partilha de ficheiros (computador), cai para guardar.
+function gerarPng(){
+  clearTimeout(tmr); render();
+  return new Promise((ok,falha)=>cv.toBlob(b=>b?ok(b):falha(new Error('Não foi possível gerar o PNG a esta resolução neste browser.')),'image/png'));
+}
+function descarregar(blob,name){
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
+$('partilhar').onchange=async function(){
+  const como=this.value; this.value='';
+  if(!como) return;
+  setStatus('A gerar PNG…');
+  let blob;
+  try{ blob=await gerarPng(); }catch(e){ setStatus(e.message||'Falhou a gerar o PNG.',true); return; }
+  const name=fileName(), mb=(blob.size/1048576).toFixed(1);
+  if(como==='guardar'){ descarregar(blob,name); setStatus(`Guardado: ${name} (${mb} MB)`); return; }
+  if(como==='copiar'){
+    try{
+      await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+      setStatus(`Imagem copiada (${mb} MB) — cola onde quiseres.`);
+    }catch(e){ setStatus('Este browser não deixa copiar imagens. Usa «Guardar o PNG» ou «Partilhar».',true); }
+    return;
+  }
+  // partilhar
+  let ficheiro=null;
+  try{ ficheiro=new File([blob],name,{type:'image/png'}); }catch(e){}
+  if(ficheiro&&navigator.share&&navigator.canShare&&navigator.canShare({files:[ficheiro]})){
+    try{ await navigator.share({files:[ficheiro],title:name}); setStatus(`Partilhado: ${name} (${mb} MB)`); }
+    catch(e){
+      if(e&&e.name==='AbortError'){ setStatus('Partilha cancelada.'); return; }
+      descarregar(blob,name); setStatus(`Não deu para partilhar; guardado: ${name} (${mb} MB)`);
+    }
+    return;
+  }
+  descarregar(blob,name);
+  setStatus(`Este aparelho não partilha ficheiros — guardado: ${name} (${mb} MB)`);
+};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('modal').hidden=true;});
 
 // ---------- go ----------
